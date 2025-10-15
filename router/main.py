@@ -423,8 +423,9 @@ async def view_order():
                     }
                 </style>
             </head>
-            <body>
+            <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
                 <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+                <div style="font-size:20px; font-weight:bold; ">Hello!</div>
             </body>
             </html>
             """
