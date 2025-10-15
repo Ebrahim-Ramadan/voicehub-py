@@ -1,0 +1,473 @@
+from fastapi import FastAPI, Request, HTTPException, WebSocket
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from typing import Any, Dict, List
+import asyncio
+import uvicorn
+import json
+import os
+
+# Load menu data
+with open("menu.json", "r", encoding="utf-8") as f:
+    menu_items = json.load(f)
+
+app = FastAPI(title="Webhook Receiver")
+
+# Serve static files (if you have CSS/images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Update the models to match the incoming JSON structure
+class OrderItem(BaseModel):
+    item_id: Any  # Accept both string and int
+    size: str
+    quantity: int
+
+class Order(BaseModel):
+    items: List[OrderItem]
+
+class FinalOrder(BaseModel):
+    order: Order | None = None
+    items: List[OrderItem] | None = None
+
+    def get_items(self) -> List[OrderItem]:
+        """Get items regardless of structure"""
+        if self.order:
+            return self.order.items
+        return self.items if self.items else []
+
+class WebhookPayload(BaseModel):
+    Final_order: str
+    event_type: str = Field(default="unknown")
+    data: Dict[str, Any] = Field(default_factory=dict)
+    
+    class Config:
+        extra = "allow"
+
+def find_menu_item(item_id: str) -> dict:
+    """Find menu item by matching either item ID, name_en, or name_ar (case insensitive)"""
+    item_id = item_id.lower().strip()
+    print(f"🔍 Searching for item: {item_id}")
+    
+    for item in menu_items:
+        name_en = str(item.get('name_en', '')).lower()
+        name_ar = str(item.get('name_ar', '')).lower()
+        item_num = str(item.get('item', '')).lower()
+        
+        print(f"Checking: {name_en} / {name_ar} / #{item_num}")
+        
+        if (item_num == item_id or 
+            name_en == item_id or 
+            'americano' in name_en or  # Special case for 'americano'
+            name_ar == item_id):
+            print(f"✅ Found match: {item}")
+            return item
+            
+    print(f"❌ No match found for: {item_id}")
+    return None
+
+def get_size_key(size: str) -> str:
+    """Convert Arabic/English size names to standard keys"""
+    size_mapping = {
+        "وسط": "medium",
+        "صغير": "small", 
+        "كبير": "large",
+        "medium": "medium",
+        "small": "small",
+        "large": "large"
+    }
+    return size_mapping.get(size.lower(), size.lower())
+
+# Add WebSocket support to HTML template
+def generate_html_response(order_details: List[dict]) -> str:
+    html = """
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: #fff;
+                padding: 16px;
+            }
+            @keyframes bounceIn {
+                0% {
+                    opacity: 0;
+                    transform: scale(0.3) rotate(-12deg);
+                }
+                50% {
+                    opacity: 0.8;
+                    transform: scale(1.05) rotate(2deg);
+                }
+                70% {
+                    transform: scale(0.98) rotate(-1deg);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1) rotate(0deg);
+                }
+            }
+            .grid-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 24px;
+                margin-bottom: 120px;
+                padding: 12px;
+            }
+            .item-card {
+                background: white;
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                transform: scale(0.3);
+                opacity: 0;
+                animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+            }
+            .item-card:hover {
+                transform: scale(1.02);
+                box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+                transition: all 0.3s ease;
+            }
+            .image-container {
+                position: relative;
+                width: 100%;
+                padding-bottom: 100%;
+                background: #f5f5f5;
+                overflow: hidden;
+            }
+            .item-image {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .quantity-badge {
+                position: absolute;
+                top: 12px;
+                right: 12px;
+                background: #0066FF;
+                color: white;
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 600;
+                font-size: 14px;
+                box-shadow: 0 2px 4px rgba(0, 102, 255, 0.3);
+            }
+            .item-details {
+                padding: 12px;
+            }
+            .item-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: #1a1a1a;
+                margin-bottom: 4px;
+            }
+            .item-meta {
+                color: #666;
+                font-size: 12px;
+            }
+            .item-price {
+                color: #1a1a1a;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            .total-container {
+    position: fixed;
+    bottom: 0;
+    left: 50%;                      /* move to center horizontally */
+    transform: translateX(-50%);    /* offset half of its own width */
+    width: 50%;                     /* take half the screen width */
+    background: white;
+    border-top: 1px solid #eee;
+    padding: 4px 16px 16px 16px;    /* top right bottom left */
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02); /* optional subtle shadow */
+}
+            .order-breakdown {
+                
+                font-size: 12px;
+                color: #666;
+            }
+            .breakdown-item {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 4px;
+            }
+            .total-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-top: 12px;
+                border-top: 1px solid #eee;
+            }
+            .total-label {
+                font-size: 15px;
+                font-weight: 500;
+            }
+            .total-amount {
+                color: #0066FF;
+                font-size: 14px;
+                font-weight: 700;
+            }
+        </style>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const cards = document.querySelectorAll('.item-card');
+                cards.forEach((card, index) => {
+                    card.style.animationDelay = `${index * 0.1}s`;
+                });
+            });
+            let ws = new WebSocket(`ws://${window.location.host}/ws`);
+            ws.onmessage = function(event) {
+                if(event.data === 'reload') {
+                    window.location.reload();
+                }
+            };
+        </script>
+    </head>
+    <body>
+        <div class="grid-container">
+    """
+    
+    # Calculate items and total
+    total = 0
+    breakdown_items = []
+    
+    # Use enumerate to get the index for animation delay
+    for idx, item in enumerate(order_details):
+        menu_item = item['menu_item']
+        size = get_size_key(item['size'])
+        quantity = item['quantity']
+        price = menu_item['sizes'].get(size, 0)
+        subtotal = price * quantity
+        total += subtotal
+        
+        # Store breakdown info
+        breakdown_items.append({
+            'name': menu_item['name_en'],
+            'quantity': quantity,
+            'price': price,
+            'subtotal': subtotal
+        })
+        
+        image_path = f'static/{menu_item.get("image", "")}'
+        has_image = os.path.exists(image_path) if menu_item.get("image") else False
+        print("has_image", has_image)
+        image_html = f"""
+            <img class="item-image" 
+                src="/static/{menu_item['image']}" 
+                alt="{menu_item['name_en']}"
+                loading="lazy">
+        """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
+
+        html += f"""
+            <div class="item-card" style="animation-delay: {idx * 0.1}s">
+                <div class="image-container">
+                    {image_html}
+                    <div class="quantity-badge">{quantity}</div>
+                </div>
+                <div class="item-details">
+                    <div class="item-name">{menu_item['name_en']}</div>
+                    <div class="item-meta">Size: {size}</div>
+                    <div class="item-price">{price:.3f} {menu_item['currency']}</div>
+                </div>
+            </div>
+        """
+
+    # Add breakdown and total
+    html += """
+        </div>
+        <div class="total-container">
+            <div class="order-breakdown">
+    """
+    
+    for item in breakdown_items:
+        html += f"""
+            <div class="breakdown-item">
+                <span>{item['name']} × {item['quantity']}</span>
+                <span>{item['subtotal']:.3f} KWD</span>
+            </div>
+        """
+    
+    html += f"""
+            </div>
+            <div class="total-row">
+                <span class="total-label">Total</span>
+                <span class="total-amount">KWD {total:.3f}</span>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+last_order_details = []  # Store the last order
+
+# Update the webhook endpoint to handle the new structure
+@app.post("/webhook")
+async def webhook_endpoint(request: Request):
+    global last_order_details
+    try:
+        body = await request.json()
+        print("\n=== Webhook Request ===")
+        print(f"📨 Raw body: {json.dumps(body, indent=2, ensure_ascii=False)}")
+        
+        try:
+            final_order_data = json.loads(body.get("Final_order", "").strip())
+            print(f"\n🔍 Parsed Final_order: {json.dumps(final_order_data, indent=2, ensure_ascii=False)}")
+            
+            # Validate with flexible model
+            final_order = FinalOrder(**final_order_data)
+            order_items = final_order.get_items()
+            
+            if not order_items:
+                raise ValueError("No items found in order")
+                
+            print(f"\n✅ Validated order structure")
+            print(f"\n📋 Order items: {len(order_items)} items")
+            for idx, item in enumerate(order_items, 1):
+                print(f"  Item {idx}: id={item.item_id}, size={item.size}, qty={item.quantity}")
+            
+        except json.JSONDecodeError as e:
+            print(f"\n❌ JSON parsing error: {str(e)}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid JSON format: {str(e)}"}
+            )
+        except Exception as e:
+            print(f"\n❌ Validation error: {str(e)}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid order format: {str(e)}"}
+            )
+
+        # Process items
+        order_details = []
+        not_found_items = []
+        
+        print("\n🔎 Looking up menu items:")
+        for item in order_items:
+            item_id = str(item.item_id)
+            print(f"\nSearching for item_id: {item_id}")
+            menu_item = find_menu_item(item_id)
+            
+            if not menu_item:
+                not_found_items.append(item_id)
+                print(f"❌ Item not found: {item_id}")
+                continue
+            
+            print(f"✅ Found item: {menu_item.get('name_en')} ({menu_item.get('name_ar')})")
+            order_details.append({
+                "menu_item": menu_item,
+                "size": item.size,
+                "quantity": item.quantity
+            })
+        
+        if not_found_items:
+            print(f"\n❌ Some items not found: {not_found_items}")
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Items not found: {', '.join(not_found_items)}"}
+            )
+        
+        if not order_details:
+            print("\n❌ No valid items in order")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No valid items in order"}
+            )
+        
+        # Store and return
+        last_order_details = order_details
+        print(f"\n✅ Order stored with {len(order_details)} items")
+        
+        return RedirectResponse(url="/view-order", status_code=303)
+
+    except Exception as e:
+        print(f"\n💥 Unexpected error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Server error: {str(e)}"}
+        )
+
+@app.get("/view-order")
+async def view_order():
+    if not last_order_details:
+        return HTMLResponse(
+            content="""
+            <html>
+            <head>
+                <title>No Order</title>
+                <style>
+                    body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    video { max-width: 80vw; max-height: 60vh;}
+                    @keyframes bounce-slow {
+                        0%, 100% { transform: scale(1) translateY(0);}
+                        35% { transform: scale(1.1) translateY(-5px);}
+                        45% { transform: scale(0.95) translateY(2px);}
+                        75% { transform: scale(1.05) translateY(-2px);}
+                    }
+                    .animate-bounce-slow {
+                        animation: bounce-slow 4s ease-in-out infinite;
+                    }
+                </style>
+            </head>
+            <body>
+                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+            </body>
+            </html>
+            """
+        )
+    return HTMLResponse(content=generate_html_response(last_order_details))
+
+@app.get("/")
+def root():
+    return {"message": "Webhook service is running 🚀"}
+
+@app.get("/debug-menu")
+async def debug_menu():
+    """Endpoint to view all menu items"""
+    menu_debug = []
+    for item in menu_items:
+        menu_debug.append({
+            'item': item.get('item'),
+            'name_en': item.get('name_en'),
+            'name_ar': item.get('name_ar')
+        })
+    return JSONResponse(content=menu_debug)
+
+# Add WebSocket endpoint
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        pass
+
+# Modify webhook to trigger reload
+async def notify_clients():
+    for client in app.state.websockets:
+        try:
+            await client.send_text('reload')
+        except:
+            pass
+
+@app.on_event("startup")
+async def startup_event():
+    app.state.websockets = set()
+
+if __name__ == "__main__":
+    uvicorn.run("ass:app", host="0.0.0.0", port=8000, reload=True)
