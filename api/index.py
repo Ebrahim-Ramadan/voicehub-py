@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException, WebSocket
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List
 import asyncio
@@ -13,9 +12,6 @@ with open("menu.json", "r", encoding="utf-8") as f:
     menu_items = json.load(f)
 
 app = FastAPI(title="Webhook Receiver")
-
-# Serve static files (if you have CSS/images)
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Update the models to match the incoming JSON structure
 class OrderItem(BaseModel):
@@ -261,12 +257,12 @@ def generate_html_response(order_details: List[dict]) -> str:
             'subtotal': subtotal
         })
         
-        image_path = f'static/{menu_item.get("image", "")}'
+        # Use /items-images/... from public folder
+        image_path = f'public/{menu_item.get("image", "")}'
         has_image = os.path.exists(image_path) if menu_item.get("image") else False
-        print("has_image", has_image)
         image_html = f"""
             <img class="item-image" 
-                src="/static/{menu_item['image']}" 
+                src="/items-images/{os.path.basename(menu_item['image'])}" 
                 alt="{menu_item['name_en']}"
                 loading="lazy">
         """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
@@ -424,7 +420,8 @@ async def view_order():
                 </style>
             </head>
             <body>
-                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+            
+                <video src="/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
             </body>
             </html>
             """
