@@ -410,7 +410,7 @@ async def view_order():
             <head>
                 <title>No Order</title>
                 <style>
-                    body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    body { background: #FEFEFE; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; flex-direction: column; }
                     video { max-width: 80vw; max-height: 60vh;}
                     @keyframes bounce-slow {
                         0%, 100% { transform: scale(1) translateY(0);}
@@ -421,10 +421,26 @@ async def view_order():
                     .animate-bounce-slow {
                         animation: bounce-slow 4s ease-in-out infinite;
                     }
+                    .widget-container { margin-top: 18px; display:flex; align-items:center; justify-content:center; }
                 </style>
             </head>
             <body>
-                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+                <video src="/static/anm/coffee-love-animation.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+                <div class="widget-container">
+                    <dq-voice agent-id='68ed7b65bdb85e5926ce7c73'  api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+                </div>
+                <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const dqVoice = document.querySelector('dq-voice');
+                        const video = document.querySelector('video');
+                        dqVoice.addEventListener('click', function() {
+                            video.src = '/static/anm/coffee-caribou-logo.mp4';
+                            video.load();
+                            video.play();
+                        });
+                    });
+                </script>
             </body>
             </html>
             """
