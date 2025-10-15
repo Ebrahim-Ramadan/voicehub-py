@@ -401,7 +401,7 @@ async def webhook_endpoint(request: Request):
             content={"error": f"Server error: {str(e)}"}
         )
 
-@app.get("/view-order")
+@app.get("/")
 async def view_order():
     if not last_order_details:
         return HTMLResponse(
@@ -431,9 +431,6 @@ async def view_order():
         )
     return HTMLResponse(content=generate_html_response(last_order_details))
 
-@app.get("/")
-def root():
-    return {"message": "Webhook service is running 🚀"}
 
 @app.get("/debug-menu")
 async def debug_menu():
