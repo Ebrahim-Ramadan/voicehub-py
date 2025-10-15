@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException, WebSocket
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List
 import asyncio
@@ -12,6 +13,9 @@ with open("menu.json", "r", encoding="utf-8") as f:
     menu_items = json.load(f)
 
 app = FastAPI(title="Webhook Receiver")
+
+# Serve static files (if you have CSS/images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Update the models to match the incoming JSON structure
 class OrderItem(BaseModel):
@@ -257,12 +261,12 @@ def generate_html_response(order_details: List[dict]) -> str:
             'subtotal': subtotal
         })
         
-        # Use /items-images/... from public folder
-        image_path = f'public/{menu_item.get("image", "")}'
+        image_path = f'static/{menu_item.get("image", "")}'
         has_image = os.path.exists(image_path) if menu_item.get("image") else False
+        print("has_image", has_image)
         image_html = f"""
             <img class="item-image" 
-                src="/items-images/{os.path.basename(menu_item['image'])}" 
+                src="/static/{menu_item['image']}" 
                 alt="{menu_item['name_en']}"
                 loading="lazy">
         """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
@@ -388,7 +392,7 @@ async def webhook_endpoint(request: Request):
         last_order_details = order_details
         print(f"\n✅ Order stored with {len(order_details)} items")
         
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/view-order", status_code=303)
 
     except Exception as e:
         print(f"\n💥 Unexpected error: {str(e)}")
@@ -397,7 +401,7 @@ async def webhook_endpoint(request: Request):
             content={"error": f"Server error: {str(e)}"}
         )
 
-@app.get("/")
+@app.get("/view-order")
 async def view_order():
     if not last_order_details:
         return HTMLResponse(
@@ -420,14 +424,16 @@ async def view_order():
                 </style>
             </head>
             <body>
-            
-                <video src="/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
             </body>
             </html>
             """
         )
     return HTMLResponse(content=generate_html_response(last_order_details))
 
+@app.get("/")
+def root():
+    return {"message": "Webhook service is running 🚀"}
 
 @app.get("/debug-menu")
 async def debug_menu():
@@ -464,4 +470,4 @@ async def startup_event():
     app.state.websockets = set()
 
 if __name__ == "__main__":
-    uvicorn.run("index:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
