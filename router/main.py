@@ -421,11 +421,25 @@ async def view_order():
                     .animate-bounce-slow {
                         animation: bounce-slow 4s ease-in-out infinite;
                     }
+                 
+                    /* Always hide the chat popup, even when mic is clicked */
+                    .DqVoiceWidget__chat,
+                    .DqVoiceWidget__chat[style],
+                    .DqVoiceWidget__chat[style*="display"],
+                    .DqVoiceWidget__chat[style*="block"] {
+                        display: none !important;
+                        visibility: hidden !important;
+                        opacity: 0 !important;
+                        pointer-events: none !important;
+                    }
                 </style>
+                <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
             </head>
             <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
                 <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
                 <div style="font-size:20px; font-weight:bold; ">Hello!</div>
+                                  <dq-voice agent-id='68ed7b65bdb85e5926ce7c73' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+
             </body>
             </html>
             """
