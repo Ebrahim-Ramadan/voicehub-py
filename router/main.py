@@ -193,11 +193,8 @@ def generate_html_response(order_details: List[dict] = None, recommendations: Li
                 z-index: 1;
                 height: 100vh;
                 overflow-y: auto;
-                animation: slowScroll 30s linear infinite;
             }
-            .recommendations-grid:hover {
-                animation-play-state: paused;
-            }
+         
             .item-card {
                 background: white;
                 border-radius: 16px;

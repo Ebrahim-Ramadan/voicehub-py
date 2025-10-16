@@ -57,6 +57,7 @@
     "category": "Cold Coffee",
     "subsection": "Caribou Cooler (Blended Beverages)",
     "name_en": "Caramel High Rise Cooler",
+        "image": "items-images/Caramel High Rise Cooler.jpg",
     "name_ar": "كراميل هاي رايز كولر",
     "currency": "KWD",
     "sizes": {
@@ -70,6 +71,7 @@
     "category": "Cold Coffee",
     "subsection": "Caribou Cooler (Blended Beverages)",
     "name_en": "Campfire Mocha Cooler",
+        "image": "items-images/Campfire Mocha Cooler.jpeg",
     "name_ar": "كامب فاير موكا كولر",
     "currency": "KWD",
     "sizes": {
@@ -97,6 +99,7 @@
     "category": "Cold Coffee",
     "subsection": "Caribou Cooler (Blended Beverages)",
     "name_en": "Salted Caramel Budino Cooler",
+        "image": "items-images/Salted Caramel Budino Cooler.jpg",
     "name_ar": "سولتد كراميل بودينو كولر",
     "currency": "KWD",
     "sizes": {
@@ -124,6 +127,7 @@
     "category": "Hot Espresso & Coffee",
     "subsection": "Espresso Favorites (Hot)",
     "name_en": "Salted Caramel Budino",
+        "image": "items-images/Salted Caramel Budino.webp",
     "name_ar": "سولتد كراميل بودينو",
     "currency": "KWD",
     "sizes": {
@@ -137,6 +141,7 @@
     "category": "Hot Espresso & Coffee",
     "subsection": "Espresso Favorites (Hot)",
     "name_en": "Mocha",
+        "image": "items-images/Mocha.jpeg",
     "name_ar": "موكا",
     "currency": "KWD",
     "sizes": {
@@ -228,6 +233,7 @@
     "category": "Hot Espresso & Coffee",
     "subsection": "Espresso Favorites (Hot)",
     "name_en": "Campfire Mocha",
+        "image": "items-images/Campfire Mocha.webp",
     "name_ar": "كامب فاير موكا",
     "currency": "KWD",
     "sizes": {
@@ -241,6 +247,7 @@
     "category": "Hot Espresso & Coffee",
     "subsection": "Espresso Favorites (Hot)",
     "name_en": "Berry White Mocha",
+        "image": "items-images/Berry White Mocha.png",  
     "name_ar": "بيري وايت موكا",
     "currency": "KWD",
     "sizes": {
