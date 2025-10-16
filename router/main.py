@@ -628,6 +628,28 @@ async def view_order():
             <head>
                 <title>No Order</title>
                 <style>
+                .scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+::-webkit-scrollbar-track {
+  height: 0;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb {
+  height: 0;
+  border-radius: 0;
+}
                     body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
                     video { max-width: 60vw; max-height: 40vh;}
                     @keyframes slideUpFade {
