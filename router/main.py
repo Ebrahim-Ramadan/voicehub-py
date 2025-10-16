@@ -405,10 +405,10 @@ async def view_order():
                     max-height: 35vh;
                 }
                 @keyframes slideUpFade {
-                    0% { opacity: 0; transform: translateY(24px); }
-                    60% { opacity: 0.8; transform: translateY(6px); }
-                    100% { opacity: 1; transform: translateY(0); }
-                }
+  0% { opacity: 0; transform: translateY(24px); }
+  60% { opacity: 0.8; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
                 .hello-text {
                     font-size: 20px;
                     font-weight: 700;
@@ -429,12 +429,12 @@ async def view_order():
                     width: 40px;
                     height: auto;
                 }
-                @keyframes bounce-slow {
-                    0%, 100% { transform: scale(1) translateY(0); }
-                    35% { transform: scale(1.1) translateY(-5px); }
-                    45% { transform: scale(0.95) translateY(2px); }
-                    75% { transform: scale(1.05) translateY(-2px); }
-                }
+               @keyframes bounce-slow {
+  0%, 100% { -webkit-transform: scale(1) translateY(0); transform: scale(1) translateY(0); }
+  35% { -webkit-transform: scale(1.1) translateY(-5px); transform: scale(1.1) translateY(-5px); }
+  45% { -webkit-transform: scale(0.95) translateY(2px); transform: scale(0.95) translateY(2px); }
+  75% { -webkit-transform: scale(1.05) translateY(-2px); transform: scale(1.05) translateY(-2px); }
+}
                 .animate-bounce-slow {
                     animation: bounce-slow 6s ease-in-out infinite;
                 }
@@ -447,30 +447,19 @@ async def view_order():
                     opacity: 0 !important;
                     pointer-events: none !important;
                 }
-                @keyframes bounceIn {
-                    0% {
-                        opacity: 0;
-                        transform: scale(0.3) rotate(-12deg);
-                    }
-                    50% {
-                        opacity: 0.8;
-                        transform: scale(1.05) rotate(2deg);
-                    }
-                    70% {
-                        transform: scale(0.98) rotate(-1deg);
-                    }
-                    100% {
-                        opacity: 1;
-                        transform: scale(1) rotate(0deg);
-                    }
-                }
+               @keyframes bounceIn {
+  0% { opacity: 0; -webkit-transform: scale(0.3) rotate(-12deg); transform: scale(0.3) rotate(-12deg); }
+  50% { opacity: 0.8; -webkit-transform: scale(1.05) rotate(2deg); transform: scale(1.05) rotate(2deg); }
+  70% { -webkit-transform: scale(0.98) rotate(-1deg); transform: scale(0.98) rotate(-1deg); }
+  100% { opacity: 1; -webkit-transform: scale(1) rotate(0deg); transform: scale(1) rotate(0deg); }
+}
                 @keyframes float {
-                    0% { transform: translateY(0) translateX(0); }
-                    25% { transform: translateY(-20px) translateX(10px); }
-                    50% { transform: translateY(0) translateX(20px); }
-                    75% { transform: translateY(20px) translateX(10px); }
-                    100% { transform: translateY(0) translateX(0); }
-                }
+  0% { -webkit-transform: translateY(0) translateX(0); transform: translateY(0) translateX(0); }
+  25% { -webkit-transform: translateY(-20px) translateX(10px); transform: translateY(-20px) translateX(10px); }
+  50% { -webkit-transform: translateY(0) translateX(20px); transform: translateY(0) translateX(20px); }
+  75% { -webkit-transform: translateY(20px) translateX(10px); transform: translateY(20px) translateX(10px); }
+  100% { -webkit-transform: translateY(0) translateX(0); transform: translateY(0) translateX(0); }
+}
                 .background-balls {
                     position: fixed;
                     top: 0;
@@ -484,10 +473,19 @@ async def view_order():
                     position: absolute;
                     background: radial-gradient(circle at 30%, rgba(0, 102, 255, 0.3), transparent 70%);
                     border-radius: 50%;
-                    filter: blur(20px);
-                    animation: float 10s ease-in-out infinite;
+                    filter: blur(10px);
+                    will-change: transform;
+  animation: float 10s ease-in-out infinite;
                     opacity: 0.3;
                 }
+                /* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .item-card, .ball, .hello-text, .animate-bounce-slow {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
                 .ball:nth-child(1) {
                     width: 80px;
                     height: 80px;
