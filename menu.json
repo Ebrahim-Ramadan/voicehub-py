@@ -157,6 +157,8 @@
     "category": "Hot Espresso & Coffee",
     "subsection": "Espresso Favorites (Hot)",
     "name_en": "Latte",
+            "image": "items-images/Latte.webp",
+    
     "name_ar": "لاتيه",
     "currency": "KWD",
     "sizes": {
