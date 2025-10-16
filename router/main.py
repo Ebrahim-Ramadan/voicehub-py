@@ -70,7 +70,7 @@ def get_size_key(size: str) -> str:
     """Convert Arabic/English size names to standard keys"""
     size_mapping = {
         "وسط": "medium",
-        "موسط": "medium",  # <-- Add this line to handle the typo
+        "موسط": "medium",
         "صغير": "small", 
         "كبير": "large",
         "medium": "medium",
@@ -96,6 +96,8 @@ def generate_html_response(order_details: List[dict]) -> str:
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 background: #fff;
                 padding: 16px;
+                position: relative;
+                overflow-x: hidden;
             }
             @keyframes bounceIn {
                 0% {
@@ -114,12 +116,61 @@ def generate_html_response(order_details: List[dict]) -> str:
                     transform: scale(1) rotate(0deg);
                 }
             }
+            @keyframes float {
+                0% { transform: translateY(0) translateX(0); }
+                25% { transform: translateY(-20px) translateX(10px); }
+                50% { transform: translateY(0) translateX(20px); }
+                75% { transform: translateY(20px) translateX(10px); }
+                100% { transform: translateY(0) translateX(0); }
+            }
+            .background-balls {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+            }
+            .ball {
+                position: absolute;
+                background: radial-gradient(circle at 30%, rgba(0, 102, 255, 0.3), transparent 70%);
+                border-radius: 50%;
+                filter: blur(20px);
+                animation: float 10s ease-in-out infinite;
+                opacity: 0.3;
+            }
+            .ball:nth-child(1) {
+                width: 80px;
+                height: 80px;
+                top: 10%;
+                left: 15%;
+                animation-duration: 12s;
+            }
+            .ball:nth-child(2) {
+                width: 120px;
+                height: 120px;
+                top: 30%;
+                right: 20%;
+                animation-duration: 15s;
+                animation-delay: 2s;
+            }
+            .ball:nth-child(3) {
+                width: 60px;
+                height: 60px;
+                bottom: 25%;
+                left: 30%;
+                animation-duration: 13s;
+                animation-delay: 1s;
+            }
             .grid-container {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
                 gap: 24px;
                 margin-bottom: 120px;
                 padding: 12px;
+                position: relative;
+                z-index: 1;
             }
             .item-card {
                 background: white;
@@ -149,22 +200,45 @@ def generate_html_response(order_details: List[dict]) -> str:
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
+                transform-origin: center;
+            }
+            .item-image[data-size="small"] {
+                transform: scale(1.2);
+            }
+            .item-image[data-size="medium"] {
+                transform: scale(1.6);
+            }
+            .item-image[data-size="large"] {
+                transform: scale(1.9);
             }
             .quantity-badge {
                 position: absolute;
-                top: 12px;
-                right: 12px;
+                top: 4px;
+                right: 4px;
                 background: #0066FF;
                 color: white;
-                width: 32px;
-                height: 32px;
-                border-radius: 16px;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-weight: 600;
-                font-size: 14px;
+                font-size: 20px;
                 box-shadow: 0 2px 4px rgba(0, 102, 255, 0.3);
+            }
+            .size-badge {
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                background: rgba(0, 0, 0, 0.25);
+                    backdrop-filter: blur(4px);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 500;
+                text-transform: capitalize;
             }
             .item-details {
                 padding: 12px;
@@ -180,23 +254,25 @@ def generate_html_response(order_details: List[dict]) -> str:
                 font-size: 12px;
             }
             .item-price {
+            display: flex;
+    justify-content: end;
                 color: #1a1a1a;
-                font-size: 13px;
+                font-size: 15px;
                 font-weight: 500;
             }
             .total-container {
-    position: fixed;
-    bottom: 0;
-    left: 50%;                      /* move to center horizontally */
-    transform: translateX(-50%);    /* offset half of its own width */
-    width: 50%;                     /* take half the screen width */
-    background: white;
-    border-top: 1px solid #eee;
-    padding: 4px 16px 16px 16px;    /* top right bottom left */
-    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02); /* optional subtle shadow */
-}
+                position: fixed;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 50%;
+                background: white;
+                border-top: 1px solid #eee;
+                padding: 4px 16px 16px 16px;
+                box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+            }
+           
             .order-breakdown {
-                
                 font-size: 12px;
                 color: #666;
             }
@@ -238,6 +314,11 @@ def generate_html_response(order_details: List[dict]) -> str:
         </script>
     </head>
     <body>
+        <div class="background-balls">
+            <div class="ball"></div>
+            <div class="ball"></div>
+            <div class="ball"></div>
+        </div>
         <div class="grid-container">
     """
     
@@ -269,6 +350,7 @@ def generate_html_response(order_details: List[dict]) -> str:
             <img class="item-image" 
                 src="/static/{menu_item['image']}" 
                 alt="{menu_item['name_en']}"
+                data-size="{size}"
                 loading="lazy">
         """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
 
@@ -277,11 +359,11 @@ def generate_html_response(order_details: List[dict]) -> str:
                 <div class="image-container">
                     {image_html}
                     <div class="quantity-badge">{quantity}</div>
+                    <div class="size-badge">{size}</div>
                 </div>
                 <div class="item-details">
                     <div class="item-name">{menu_item['name_en']}</div>
-                    <div class="item-meta">Size: {size}</div>
-                    <div class="item-price">{price:.3f} {menu_item['currency']}</div>
+                    <div class="item-price">{price:.2f} {menu_item['currency']}</div>
                 </div>
             </div>
         """
@@ -297,7 +379,7 @@ def generate_html_response(order_details: List[dict]) -> str:
         html += f"""
             <div class="breakdown-item">
                 <span>{item['name']} × {item['quantity']}</span>
-                <span>{item['subtotal']:.3f} KWD</span>
+                <span>{item['subtotal']:.2f} KWD</span>
             </div>
         """
     
@@ -305,7 +387,7 @@ def generate_html_response(order_details: List[dict]) -> str:
             </div>
             <div class="total-row">
                 <span class="total-label">Total</span>
-                <span class="total-amount">KWD {total:.3f}</span>
+                <span class="total-amount">KWD {total:.2f}</span>
             </div>
         </div>
     </body>
@@ -315,7 +397,6 @@ def generate_html_response(order_details: List[dict]) -> str:
 
 last_order_details = []  # Store the last order
 
-# Update the webhook endpoint to handle the new structure
 @app.post("/webhook")
 async def webhook_endpoint(request: Request):
     global last_order_details
@@ -389,9 +470,12 @@ async def webhook_endpoint(request: Request):
                 content={"error": "No valid items in order"}
             )
         
-        # Store and return
+        # Store and notify clients
         last_order_details = order_details
         print(f"\n✅ Order stored with {len(order_details)} items")
+        
+        # Notify all connected WebSocket clients to reload
+        await notify_clients()
         
         return RedirectResponse(url="/view-order", status_code=303)
 
@@ -454,7 +538,6 @@ async def view_order():
         )
     return HTMLResponse(content=generate_html_response(last_order_details))
 
-
 @app.get("/debug-menu")
 async def debug_menu():
     """Endpoint to view all menu items"""
@@ -471,11 +554,12 @@ async def debug_menu():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    app.state.websockets.add(websocket)  # Add client to set
     try:
         while True:
             await websocket.receive_text()
     except:
-        pass
+        app.state.websockets.discard(websocket)  # Remove client on disconnect
 
 # Modify webhook to trigger reload
 async def notify_clients():

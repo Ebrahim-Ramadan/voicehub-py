@@ -17,6 +17,7 @@
     "category": "Cold Espresso",
     "subsection": "Espresso Favorites (Iced)",
     "name_en": "Iced Latte",
+        "image": "items-images/Iced Latte.jpg",
     "name_ar": "آيسد لاتيه",
     "currency": "KWD",
     "sizes": {
