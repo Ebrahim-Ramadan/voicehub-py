@@ -70,6 +70,7 @@ def get_size_key(size: str) -> str:
     """Convert Arabic/English size names to standard keys"""
     size_mapping = {
         "وسط": "medium",
+        "موسط": "medium",  # <-- Add this line to handle the typo
         "صغير": "small", 
         "كبير": "large",
         "medium": "medium",
@@ -421,8 +422,6 @@ async def view_order():
                     .animate-bounce-slow {
                         animation: bounce-slow 4s ease-in-out infinite;
                     }
-                 
-                    /* Always hide the chat popup, even when mic is clicked */
                     .DqVoiceWidget__chat,
                     .DqVoiceWidget__chat[style],
                     .DqVoiceWidget__chat[style*="display"],
@@ -434,12 +433,21 @@ async def view_order():
                     }
                 </style>
                 <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
+                <script>
+                    let ws = new WebSocket(`ws://${window.location.host}/ws`);
+                    ws.onmessage = function(event) {
+                        if(event.data === 'reload') {
+                            window.location.reload();
+                        }
+                    };
+                </script>
             </head>
             <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
                 <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
                 <div style="font-size:20px; font-weight:bold; ">Hello!</div>
-                                  <dq-voice agent-id='68ed7b65bdb85e5926ce7c73' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
-
+                <div class="voice-widget-container">
+                    <dq-voice agent-id='68ed7b65bdb85e5926ce7c73' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+                </div>
             </body>
             </html>
             """
