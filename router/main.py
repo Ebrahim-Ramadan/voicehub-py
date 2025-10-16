@@ -443,7 +443,7 @@ async def view_order():
                 </script>
             </head>
             <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
-                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted class="animate-bounce-slow"></video>
+                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted playsinline class="animate-bounce-slow"></video>
                 <div style="font-size:20px; font-weight:bold; ">Hello!</div>
                 <div class="voice-widget-container">
                     <dq-voice agent-id='68ed7b65bdb85e5926ce7c73' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
