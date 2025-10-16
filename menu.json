@@ -31,6 +31,7 @@
     "category": "Cold Coffee",
     "subsection": "Cold Press Coffee",
     "name_en": "Cold Press Iced Coffee",
+        "image": "items-images/Cold Press Iced Coffee.png",
     "name_ar": "كولد برس آيسد كوفي",
     "currency": "KWD",
     "sizes": {
@@ -44,6 +45,7 @@
     "category": "Cold Coffee",
     "subsection": "Cold Press Coffee",
     "name_en": "Cold Press Lemonade",
+        "image": "items-images/Cold Press Lemonade.webp",
     "name_ar": "كولد برس ليمونادة",
     "currency": "KWD",
     "sizes": {
