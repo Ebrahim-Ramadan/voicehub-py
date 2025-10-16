@@ -342,8 +342,6 @@ def generate_html_response(order_details: List[dict] = None, recommendations: Li
                     window.location.reload();
                 }
             };
-
-            
         </script>
     </head>
     <body>
@@ -635,20 +633,20 @@ async def view_order():
                 <style>
                     body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
                     video { max-width: 60vw; max-height: 40vh;}
-                     @keyframes slideUpFade {
-                      0% { opacity: 0; transform: translateY(24px); }
-                      60% { opacity: 0.8; transform: translateY(6px); }
-                      100% { opacity: 1; transform: translateY(0); }
-                  }
-                  .hello-text {
-                      font-size: 20px;
-                      font-weight: 700;
-                      opacity: 0;
-                      /* animation will be started via JS after 2s */
-                  }
-                  .hello-text.animate {
-                      animation: slideUpFade 800ms cubic-bezier(.2,.9,.3,1) forwards;
-                  }
+                    @keyframes slideUpFade {
+                        0% { opacity: 0; transform: translateY(24px); }
+                        60% { opacity: 0.8; transform: translateY(6px); }
+                        100% { opacity: 1; transform: translateY(0); }
+                    }
+                    .hello-text {
+                        font-size: 20px;
+                        font-weight: 700;
+                        opacity: 0;
+                        visibility: visible; /* Ensure visibility even if animation fails */
+                    }
+                    .hello-text.animate {
+                        animation: slideUpFade 800ms cubic-bezier(.2,.9,.3,1) forwards;
+                    }
                     .logo-container {
                         position: absolute;
                         top: 16px;
@@ -656,7 +654,7 @@ async def view_order():
                         z-index: 2;
                     }
                     .logo {
-                    border-radius: 50%;
+                        border-radius: 50%;
                         width: 40px;
                         height: auto;
                     }
@@ -681,26 +679,39 @@ async def view_order():
                 </style>
                 <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
                 <script>
+                    console.log('Starting homepage script');
                     let ws = new WebSocket(`ws://${window.location.host}/ws`);
                     ws.onmessage = function(event) {
-                        if(event.data === 'reload') {
+                        console.log('WebSocket message received:', event.data);
+                        if (event.data === 'reload') {
                             window.location.reload();
                         }
                     };
-                     // Start hello animation 2s after page load
-                   if (document.readyState === 'loading') {
-                       document.addEventListener('DOMContentLoaded', () => {
-                           setTimeout(() => {
-                               const el = document.querySelector('.hello-text');
-                               if (el) el.classList.add('animate');
-                           }, 1699);
-                       });
-                   } else {
-                       setTimeout(() => {
-                           const el = document.querySelector('.hello-text');
-                           if (el) el.classList.add('animate');
-                       }, 1699);
-                   }
+                    ws.onerror = function(error) {
+                        console.error('WebSocket error:', error);
+                    };
+                    document.addEventListener('DOMContentLoaded', () => {
+                        console.log('DOM fully loaded');
+                        setTimeout(() => {
+                            console.log('Attempting to animate hello-text');
+                            const el = document.querySelector('.hello-text');
+                            if (el) {
+                                console.log('Found hello-text element, adding animate class');
+                                el.classList.add('animate');
+                            } else {
+                                console.error('hello-text element not found');
+                            }
+                        }, 2000); // Increased delay for production
+                    });
+                    // Fallback to show text if animation doesn't trigger
+                    setTimeout(() => {
+                        const el = document.querySelector('.hello-text');
+                        if (el && !el.classList.contains('animate')) {
+                            console.log('Animation fallback triggered');
+                            el.style.opacity = '1';
+                            el.style.transform = 'translateY(0)';
+                        }
+                    }, 3000);
                 </script>
             </head>
             <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
@@ -709,13 +720,26 @@ async def view_order():
                 </div>
                 <video src="/static/anm/coffee-love-animation.mp4" autoplay loop muted playsinline class="animate-bounce-slow"></video>
                 <div class="hello-text">Hello!</div>
-                                   <dq-voice agent-id='68f046cd815af002cbebfc7c' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+                <div class="voice-widget-container">
+                    <dq-voice agent-id='68f046cd815af002cbebfc7c' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+                </div>
             </body>
             </html>
             """
         )
     return HTMLResponse(content=generate_html_response(last_order_details, last_recommendations))
 
+@app.get("/debug-menu")
+async def debug_menu():
+    """Endpoint to view all menu items"""
+    menu_debug = []
+    for item in menu_items:
+        menu_debug.append({
+            'item': item.get('item'),
+            'name_en': item.get('name_en'),
+            'name_ar': item.get('name_ar')
+        })
+    return JSONResponse(content=menu_debug)
 
 # Add WebSocket endpoint
 @app.websocket("/ws")
