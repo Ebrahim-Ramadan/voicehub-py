@@ -44,6 +44,9 @@ class WebhookPayload(BaseModel):
     class Config:
         extra = "allow"
 
+class RecommendationPayload(BaseModel):
+    items_ids: str
+
 def find_menu_item(item_id: str) -> dict:
     """Find menu item by matching either item ID, name_en, or name_ar (case insensitive)"""
     item_id = item_id.lower().strip()
@@ -79,8 +82,11 @@ def get_size_key(size: str) -> str:
     }
     return size_mapping.get(size.lower(), size.lower())
 
-# Add WebSocket support to HTML template
-def generate_html_response(order_details: List[dict]) -> str:
+# Store recommendations separately
+last_recommendations = []  # Store recommended items
+
+def generate_html_response(order_details: List[dict] = None, recommendations: List[dict] = None) -> str:
+    show_recommendations = not order_details and recommendations  # Show recommendations only if no order items
     html = """
     <html>
     <head>
@@ -123,6 +129,10 @@ def generate_html_response(order_details: List[dict]) -> str:
                 75% { transform: translateY(20px) translateX(10px); }
                 100% { transform: translateY(0) translateX(0); }
             }
+            @keyframes slowScroll {
+                0% { transform: translateY(0); }
+                100% { transform: translateY(-100%); }
+            }
             .background-balls {
                 position: fixed;
                 top: 0;
@@ -164,13 +174,29 @@ def generate_html_response(order_details: List[dict]) -> str:
                 animation-delay: 1s;
             }
             .grid-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
                 gap: 24px;
                 margin-bottom: 120px;
                 padding: 12px;
                 position: relative;
                 z-index: 1;
+            }
+            .recommendations-grid {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 24px;
+                padding: 12px;
+                position: relative;
+                z-index: 1;
+                height: 100vh;
+                overflow-y: auto;
+                animation: slowScroll 30s linear infinite;
+            }
+            .recommendations-grid:hover {
+                animation-play-state: paused;
             }
             .item-card {
                 background: white;
@@ -180,6 +206,7 @@ def generate_html_response(order_details: List[dict]) -> str:
                 transform: scale(0.3);
                 opacity: 0;
                 animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+                width: 214px;
             }
             .item-card:hover {
                 transform: scale(1.02);
@@ -232,7 +259,7 @@ def generate_html_response(order_details: List[dict]) -> str:
                 bottom: 8px;
                 right: 8px;
                 background: rgba(0, 0, 0, 0.25);
-                    backdrop-filter: blur(4px);
+                backdrop-filter: blur(4px);
                 color: white;
                 padding: 4px 8px;
                 border-radius: 12px;
@@ -249,13 +276,9 @@ def generate_html_response(order_details: List[dict]) -> str:
                 color: #1a1a1a;
                 margin-bottom: 4px;
             }
-            .item-meta {
-                color: #666;
-                font-size: 12px;
-            }
             .item-price {
-            display: flex;
-    justify-content: end;
+                display: flex;
+                justify-content: end;
                 color: #1a1a1a;
                 font-size: 15px;
                 font-weight: 500;
@@ -271,7 +294,15 @@ def generate_html_response(order_details: List[dict]) -> str:
                 padding: 4px 16px 16px 16px;
                 box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
             }
-           
+            .total-container::before {
+                content: '';
+                position: absolute;
+                top: -20px;
+                left: 0;
+                right: 0;
+                height: 20px;
+                background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
+            }
             .order-breakdown {
                 font-size: 12px;
                 color: #666;
@@ -311,6 +342,8 @@ def generate_html_response(order_details: List[dict]) -> str:
                     window.location.reload();
                 }
             };
+
+            
         </script>
     </head>
     <body>
@@ -319,83 +352,188 @@ def generate_html_response(order_details: List[dict]) -> str:
             <div class="ball"></div>
             <div class="ball"></div>
         </div>
+    """
+    
+    if show_recommendations:
+        html += """
+        <div class="recommendations-grid">
+        """
+        for idx, item in enumerate(recommendations):
+            menu_item = item['menu_item']
+            size = 'medium'  # Default size for recommendations
+            price = menu_item['sizes'].get(size, 0)
+            
+            image_path = f'static/{menu_item.get("image", "")}'
+            has_image = os.path.exists(image_path) if menu_item.get("image") else False
+            image_html = f"""
+                <img class="item-image" 
+                    src="/static/{menu_item['image']}" 
+                    alt="{menu_item['name_en']}"
+                    data-size="{size}"
+                    loading="lazy">
+            """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
+
+            html += f"""
+                <div class="item-card" style="animation-delay: {idx * 0.1}s">
+                    <div class="image-container">
+                        {image_html}
+                        <div class="size-badge">{size}</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="item-name">{menu_item['name_en']}</div>
+                        <div class="item-price">{price:.2f} {menu_item['currency']}</div>
+                    </div>
+                </div>
+            """
+        html += """
+        </div>
+        </body>
+        </html>
+        """
+    else:
+        html += """
         <div class="grid-container">
-    """
-    
-    # Calculate items and total
-    total = 0
-    breakdown_items = []
-    
-    # Use enumerate to get the index for animation delay
-    for idx, item in enumerate(order_details):
-        menu_item = item['menu_item']
-        size = get_size_key(item['size'])
-        quantity = item['quantity']
-        price = menu_item['sizes'].get(size, 0)
-        subtotal = price * quantity
-        total += subtotal
-        
-        # Store breakdown info
-        breakdown_items.append({
-            'name': menu_item['name_en'],
-            'quantity': quantity,
-            'price': price,
-            'subtotal': subtotal
-        })
-        
-        image_path = f'static/{menu_item.get("image", "")}'
-        has_image = os.path.exists(image_path) if menu_item.get("image") else False
-        print("has_image", has_image)
-        image_html = f"""
-            <img class="item-image" 
-                src="/static/{menu_item['image']}" 
-                alt="{menu_item['name_en']}"
-                data-size="{size}"
-                loading="lazy">
-        """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
-
-        html += f"""
-            <div class="item-card" style="animation-delay: {idx * 0.1}s">
-                <div class="image-container">
-                    {image_html}
-                    <div class="quantity-badge">{quantity}</div>
-                    <div class="size-badge">{size}</div>
-                </div>
-                <div class="item-details">
-                    <div class="item-name">{menu_item['name_en']}</div>
-                    <div class="item-price">{price:.2f} {menu_item['currency']}</div>
-                </div>
-            </div>
         """
+        # Calculate items and total
+        total = 0
+        breakdown_items = []
+        
+        for idx, item in enumerate(order_details):
+            menu_item = item['menu_item']
+            size = get_size_key(item['size'])
+            quantity = item['quantity']
+            price = menu_item['sizes'].get(size, 0)
+            subtotal = price * quantity
+            total += subtotal
+            
+            breakdown_items.append({
+                'name': menu_item['name_en'],
+                'quantity': quantity,
+                'price': price,
+                'subtotal': subtotal
+            })
+            
+            image_path = f'static/{menu_item.get("image", "")}'
+            has_image = os.path.exists(image_path) if menu_item.get("image") else False
+            image_html = f"""
+                <img class="item-image" 
+                    src="/static/{menu_item['image']}" 
+                    alt="{menu_item['name_en']}"
+                    data-size="{size}"
+                    loading="lazy">
+            """ if has_image else f'<div class="placeholder">Item #{menu_item.get("item", "N/A")}</div>'
 
-    # Add breakdown and total
-    html += """
-        </div>
-        <div class="total-container">
-            <div class="order-breakdown">
-    """
-    
-    for item in breakdown_items:
-        html += f"""
-            <div class="breakdown-item">
-                <span>{item['name']} × {item['quantity']}</span>
-                <span>{item['subtotal']:.2f} KWD</span>
+            html += f"""
+                <div class="item-card" style="animation-delay: {idx * 0.1}s">
+                    <div class="image-container">
+                        {image_html}
+                        <div class="quantity-badge">{quantity}</div>
+                        <div class="size-badge">{size}</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="item-name">{menu_item['name_en']}</div>
+                        <div class="item-price">{price:.2f} {menu_item['currency']}</div>
+                    </div>
+                </div>
+            """
+
+        html += """
             </div>
+            <div class="total-container">
+                <div class="order-breakdown">
         """
-    
-    html += f"""
+        
+        for item in breakdown_items:
+            html += f"""
+                <div class="breakdown-item">
+                    <span>{item['name']} × {item['quantity']}</span>
+                    <span>{item['subtotal']:.2f} KWD</span>
+                </div>
+            """
+        
+        html += f"""
+                </div>
+                <div class="total-row">
+                    <span class="total-label">Total</span>
+                    <span class="total-amount">KWD {total:.2f}</span>
+                </div>
             </div>
-            <div class="total-row">
-                <span class="total-label">Total</span>
-                <span class="total-amount">KWD {total:.2f}</span>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+        </body>
+        </html>
+        """
     return html
 
 last_order_details = []  # Store the last order
+last_recommendations = []  # Store the last recommendations
+
+@app.post("/recommendations")
+async def recommendations_endpoint(request: Request):
+    global last_recommendations
+    try:
+        body = await request.json()
+        print("\n=== Recommendations Request ===")
+        print(f"📨 Raw body: {json.dumps(body, indent=2, ensure_ascii=False)}")
+        
+        # Validate payload
+        payload = RecommendationPayload(**body)
+        item_ids = payload.items_ids.split(",")
+        item_ids = [id.strip() for id in item_ids if id.strip()]
+        
+        if not item_ids:
+            print("\n❌ No valid item IDs in recommendations")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No valid item IDs provided"}
+            )
+        
+        # Process recommended items
+        recommendations = []
+        not_found_items = []
+        
+        print("\n🔎 Looking up recommended items:")
+        for item_id in item_ids:
+            print(f"\nSearching for item_id: {item_id}")
+            menu_item = find_menu_item(item_id)
+            
+            if not menu_item:
+                not_found_items.append(item_id)
+                print(f"❌ Item not found: {item_id}")
+                continue
+            
+            print(f"✅ Found item: {menu_item.get('name_en')} ({menu_item.get('name_ar')})")
+            recommendations.append({
+                "menu_item": menu_item
+            })
+        
+        if not_found_items:
+            print(f"\n❌ Some items not found: {not_found_items}")
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Items not found: {', '.join(not_found_items)}"}
+            )
+        
+        if not recommendations:
+            print("\n❌ No valid items in recommendations")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No valid items in recommendations"}
+            )
+        
+        # Store recommendations
+        last_recommendations = recommendations
+        print(f"\n✅ Recommendations stored with {len(recommendations)} items")
+        
+        # Notify all connected WebSocket clients to reload
+        await notify_clients()
+        
+        return RedirectResponse(url="/", status_code=303)
+
+    except Exception as e:
+        print(f"\n💥 Unexpected error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Server error: {str(e)}"}
+        )
 
 @app.post("/webhook")
 async def webhook_endpoint(request: Request):
@@ -477,7 +615,7 @@ async def webhook_endpoint(request: Request):
         # Notify all connected WebSocket clients to reload
         await notify_clients()
         
-        return RedirectResponse(url="/view-order", status_code=303)
+        return RedirectResponse(url="/", status_code=303)
 
     except Exception as e:
         print(f"\n💥 Unexpected error: {str(e)}")
@@ -488,7 +626,7 @@ async def webhook_endpoint(request: Request):
 
 @app.get("/")
 async def view_order():
-    if not last_order_details:
+    if not last_order_details and not last_recommendations:
         return HTMLResponse(
             content="""
             <html>
@@ -496,7 +634,32 @@ async def view_order():
                 <title>No Order</title>
                 <style>
                     body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                    video { max-width: 80vw; max-height: 60vh;}
+                    video { max-width: 60vw; max-height: 40vh;}
+                     @keyframes slideUpFade {
+                      0% { opacity: 0; transform: translateY(24px); }
+                      60% { opacity: 0.8; transform: translateY(6px); }
+                      100% { opacity: 1; transform: translateY(0); }
+                  }
+                  .hello-text {
+                      font-size: 20px;
+                      font-weight: 700;
+                      opacity: 0;
+                      /* animation will be started via JS after 2s */
+                  }
+                  .hello-text.animate {
+                      animation: slideUpFade 800ms cubic-bezier(.2,.9,.3,1) forwards;
+                  }
+                    .logo-container {
+                        position: absolute;
+                        top: 16px;
+                        left: 16px;
+                        z-index: 2;
+                    }
+                    .logo {
+                    border-radius: 50%;
+                        width: 40px;
+                        height: auto;
+                    }
                     @keyframes bounce-slow {
                         0%, 100% { transform: scale(1) translateY(0);}
                         35% { transform: scale(1.1) translateY(-5px);}
@@ -524,31 +687,35 @@ async def view_order():
                             window.location.reload();
                         }
                     };
+                     // Start hello animation 2s after page load
+                   if (document.readyState === 'loading') {
+                       document.addEventListener('DOMContentLoaded', () => {
+                           setTimeout(() => {
+                               const el = document.querySelector('.hello-text');
+                               if (el) el.classList.add('animate');
+                           }, 1699);
+                       });
+                   } else {
+                       setTimeout(() => {
+                           const el = document.querySelector('.hello-text');
+                           if (el) el.classList.add('animate');
+                       }, 1699);
+                   }
                 </script>
             </head>
             <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
-                <video src="/static/anm/coffee-caribou-logo.mp4" autoplay loop muted playsinline class="animate-bounce-slow"></video>
-                <div style="font-size:20px; font-weight:bold; ">Hello!</div>
-                <div class="voice-widget-container">
-                    <dq-voice agent-id='68ed7b65bdb85e5926ce7c73' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
+                <div class="logo-container">
+                    <img class="logo" src="/static/anm/coffee-caribou-logo.png" alt="Logo">
                 </div>
+                <video src="/static/anm/coffee-love-animation.mp4" autoplay loop muted playsinline class="animate-bounce-slow"></video>
+                <div class="hello-text">Hello!</div>
+                                   <dq-voice agent-id='68f046cd815af002cbebfc7c' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
             </body>
             </html>
             """
         )
-    return HTMLResponse(content=generate_html_response(last_order_details))
+    return HTMLResponse(content=generate_html_response(last_order_details, last_recommendations))
 
-@app.get("/debug-menu")
-async def debug_menu():
-    """Endpoint to view all menu items"""
-    menu_debug = []
-    for item in menu_items:
-        menu_debug.append({
-            'item': item.get('item'),
-            'name_en': item.get('name_en'),
-            'name_ar': item.get('name_ar')
-        })
-    return JSONResponse(content=menu_debug)
 
 # Add WebSocket endpoint
 @app.websocket("/ws")
