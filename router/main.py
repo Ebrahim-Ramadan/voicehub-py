@@ -401,8 +401,8 @@ async def view_order():
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }
                 video { 
-                    max-width: 60vw; 
-                    max-height: 40vh;
+                    max-width: 50vw; 
+                    max-height: 35vh;
                 }
                 @keyframes slideUpFade {
                     0% { opacity: 0; transform: translateY(24px); }
@@ -436,7 +436,7 @@ async def view_order():
                     75% { transform: scale(1.05) translateY(-2px); }
                 }
                 .animate-bounce-slow {
-                    animation: bounce-slow 4s ease-in-out infinite;
+                    animation: bounce-slow 6s ease-in-out infinite;
                 }
                 .DqVoiceWidget__chat,
                 .DqVoiceWidget__chat[style],
@@ -814,7 +814,9 @@ async def view_order():
                 <div class="logo-container">
                     <img class="logo" src="/static/anm/coffee-caribou-logo.png" alt="Logo">
                 </div>
-                <video src="/static/anm/coffee-love-animation.mp4" autoplay loop muted playsinline class="animate-bounce-slow"></video>
+                                <div style="position: absolute; inset: 0; border-radius: 374px; opacity: 0.3; z-index: -1; background: radial-gradient(48.2% 50%, rgb(52, 150, 239) 0%, rgba(15, 28, 50, 0) 100%);"></div>
+
+                <img src="/static/anm/coffee-love-animation.gif" class="animate-bounce-slow" alt="Coffee love animation">
                 <div class="hello-text">Hello!</div>
                 <div class="voice-widget-container">
                     <dq-voice agent-id='68f046cd815af002cbebfc7c' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
