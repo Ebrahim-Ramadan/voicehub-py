@@ -628,15 +628,7 @@ async def view_order():
                     padding: 4px 16px 16px 16px;
                     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
                 }
-                .total-container::before {
-                    content: '';
-                    position: absolute;
-                    top: -20px;
-                    left: 0;
-                    right: 0;
-                    height: 20px;
-                    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
-                }
+               
                 .order-breakdown {
                     font-size: 12px;
                     color: #666;
