@@ -84,270 +84,11 @@ def get_size_key(size: str) -> str:
 
 # Store recommendations separately
 last_recommendations = []  # Store recommended items
+last_order_details = []  # Store the last order
 
-def generate_html_response(order_details: List[dict] = None, recommendations: List[dict] = None) -> str:
+def generate_html_content(order_details: List[dict] = None, recommendations: List[dict] = None) -> str:
     show_recommendations = not order_details and recommendations  # Show recommendations only if no order items
-    html = """
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            body { 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: #fff;
-                padding: 16px;
-                position: relative;
-                overflow-x: hidden;
-            }
-            @keyframes bounceIn {
-                0% {
-                    opacity: 0;
-                    transform: scale(0.3) rotate(-12deg);
-                }
-                50% {
-                    opacity: 0.8;
-                    transform: scale(1.05) rotate(2deg);
-                }
-                70% {
-                    transform: scale(0.98) rotate(-1deg);
-                }
-                100% {
-                    opacity: 1;
-                    transform: scale(1) rotate(0deg);
-                }
-            }
-            @keyframes float {
-                0% { transform: translateY(0) translateX(0); }
-                25% { transform: translateY(-20px) translateX(10px); }
-                50% { transform: translateY(0) translateX(20px); }
-                75% { transform: translateY(20px) translateX(10px); }
-                100% { transform: translateY(0) translateX(0); }
-            }
-            @keyframes slowScroll {
-                0% { transform: translateY(0); }
-                100% { transform: translateY(-100%); }
-            }
-            .background-balls {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                z-index: -1;
-            }
-            .ball {
-                position: absolute;
-                background: radial-gradient(circle at 30%, rgba(0, 102, 255, 0.3), transparent 70%);
-                border-radius: 50%;
-                filter: blur(20px);
-                animation: float 10s ease-in-out infinite;
-                opacity: 0.3;
-            }
-            .ball:nth-child(1) {
-                width: 80px;
-                height: 80px;
-                top: 10%;
-                left: 15%;
-                animation-duration: 12s;
-            }
-            .ball:nth-child(2) {
-                width: 120px;
-                height: 120px;
-                top: 30%;
-                right: 20%;
-                animation-duration: 15s;
-                animation-delay: 2s;
-            }
-            .ball:nth-child(3) {
-                width: 60px;
-                height: 60px;
-                bottom: 25%;
-                left: 30%;
-                animation-duration: 13s;
-                animation-delay: 1s;
-            }
-            .grid-container {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 24px;
-                margin-bottom: 120px;
-                padding: 12px;
-                position: relative;
-                z-index: 1;
-            }
-            .recommendations-grid {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 24px;
-                padding: 12px;
-                position: relative;
-                z-index: 1;
-                height: 100vh;
-                overflow-y: auto;
-            }
-         
-            .item-card {
-                background: white;
-                border-radius: 16px;
-                overflow: hidden;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-                transform: scale(0.3);
-                opacity: 0;
-                animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-                width: 214px;
-            }
-            .item-card:hover {
-                transform: scale(1.02);
-                box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
-                transition: all 0.3s ease;
-            }
-            .image-container {
-                position: relative;
-                width: 100%;
-                padding-bottom: 100%;
-                background: #f5f5f5;
-                overflow: hidden;
-            }
-            .item-image {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                transform-origin: center;
-            }
-            .item-image[data-size="small"] {
-                transform: scale(1.2);
-            }
-            .item-image[data-size="medium"] {
-                transform: scale(1.6);
-            }
-            .item-image[data-size="large"] {
-                transform: scale(1.9);
-            }
-            .quantity-badge {
-                position: absolute;
-                top: 4px;
-                right: 4px;
-                background: #0066FF;
-                color: white;
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 600;
-                font-size: 20px;
-                box-shadow: 0 2px 4px rgba(0, 102, 255, 0.3);
-            }
-            .size-badge {
-                position: absolute;
-                bottom: 8px;
-                right: 8px;
-                background: rgba(0, 0, 0, 0.25);
-                backdrop-filter: blur(4px);
-                color: white;
-                padding: 4px 8px;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: 500;
-                text-transform: capitalize;
-            }
-            .item-details {
-                padding: 12px;
-            }
-            .item-name {
-                font-size: 14px;
-                font-weight: 600;
-                color: #1a1a1a;
-                margin-bottom: 4px;
-            }
-            .item-price {
-                display: flex;
-                justify-content: end;
-                color: #1a1a1a;
-                font-size: 15px;
-                font-weight: 500;
-            }
-            .total-container {
-                position: fixed;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 50%;
-                background: white;
-                border-top: 1px solid #eee;
-                padding: 4px 16px 16px 16px;
-                box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
-            }
-            .total-container::before {
-                content: '';
-                position: absolute;
-                top: -20px;
-                left: 0;
-                right: 0;
-                height: 20px;
-                background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
-            }
-            .order-breakdown {
-                font-size: 12px;
-                color: #666;
-            }
-            .breakdown-item {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 4px;
-            }
-            .total-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding-top: 12px;
-                border-top: 1px solid #eee;
-            }
-            .total-label {
-                font-size: 15px;
-                font-weight: 500;
-            }
-            .total-amount {
-                color: #0066FF;
-                font-size: 14px;
-                font-weight: 700;
-            }
-        </style>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const cards = document.querySelectorAll('.item-card');
-                cards.forEach((card, index) => {
-                    card.style.animationDelay = `${index * 0.1}s`;
-                });
-            });
-            let ws = new WebSocket(`ws://${window.location.host}/ws`);
-            ws.onmessage = function(event) {
-                if(event.data === 'reload') {
-                    window.location.reload();
-                }
-            };
-        </script>
-    </head>
-    <body>
-        <div class="background-balls">
-            <div class="ball"></div>
-            <div class="ball"></div>
-            <div class="ball"></div>
-        </div>
-    """
+    html = ""
     
     if show_recommendations:
         html += """
@@ -382,8 +123,6 @@ def generate_html_response(order_details: List[dict] = None, recommendations: Li
             """
         html += """
         </div>
-        </body>
-        </html>
         """
     else:
         html += """
@@ -453,13 +192,8 @@ def generate_html_response(order_details: List[dict] = None, recommendations: Li
                     <span class="total-amount">KWD {total:.2f}</span>
                 </div>
             </div>
-        </body>
-        </html>
         """
     return html
-
-last_order_details = []  # Store the last order
-last_recommendations = []  # Store the last recommendations
 
 @app.post("/recommendations")
 async def recommendations_endpoint(request: Request):
@@ -518,10 +252,13 @@ async def recommendations_endpoint(request: Request):
         last_recommendations = recommendations
         print(f"\n✅ Recommendations stored with {len(recommendations)} items")
         
-        # Notify all connected WebSocket clients to reload
-        await notify_clients()
+        # Notify all connected WebSocket clients with recommendations data
+        await notify_clients({
+            "type": "recommendations",
+            "data": recommendations
+        })
         
-        return RedirectResponse(url="/", status_code=303)
+        return JSONResponse(content={"status": "success"})
 
     except Exception as e:
         print(f"\n💥 Unexpected error: {str(e)}")
@@ -607,10 +344,13 @@ async def webhook_endpoint(request: Request):
         last_order_details = order_details
         print(f"\n✅ Order stored with {len(order_details)} items")
         
-        # Notify all connected WebSocket clients to reload
-        await notify_clients()
+        # Notify all connected WebSocket clients with order data
+        await notify_clients({
+            "type": "order",
+            "data": order_details
+        })
         
-        return RedirectResponse(url="/", status_code=303)
+        return JSONResponse(content={"status": "success"})
 
     except Exception as e:
         print(f"\n💥 Unexpected error: {str(e)}")
@@ -621,107 +361,343 @@ async def webhook_endpoint(request: Request):
 
 @app.get("/")
 async def view_order():
-    if not last_order_details and not last_recommendations:
-        return HTMLResponse(
-            content="""
-            <html>
-            <head>
-                <title>No Order</title>
-                <style>
+    # Reset state on page load to show initial "Hello!" screen
+    global last_order_details, last_recommendations
+    last_order_details = []
+    last_recommendations = []
+    
+    return HTMLResponse(
+        content="""
+        <html>
+        <head>
+            <title>No Order</title>
+            <style>
                 .scrollbar-hidden::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hidden {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-::-webkit-scrollbar {
-  height: 0;
-  width: 0;
-}
-
-::-webkit-scrollbar-track {
-  height: 0;
-  border-radius: 0;
-}
-
-::-webkit-scrollbar-thumb {
-  height: 0;
-  border-radius: 0;
-}
-                    body { background: #FDFDFD; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                    video { max-width: 60vw; max-height: 40vh;}
-                    @keyframes slideUpFade {
-                        0% { opacity: 0; transform: translateY(24px); }
-                        60% { opacity: 0.8; transform: translateY(6px); }
-                        100% { opacity: 1; transform: translateY(0); }
-                    }
-                    .hello-text {
-                        font-size: 20px;
-                        font-weight: 700;
+                    display: none;
+                }
+                .scrollbar-hidden {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                ::-webkit-scrollbar {
+                    height: 0;
+                    width: 0;
+                }
+                ::-webkit-scrollbar-track {
+                    height: 0;
+                    border-radius: 0;
+                }
+                ::-webkit-scrollbar-thumb {
+                    height: 0;
+                    border-radius: 0;
+                }
+                body { 
+                    background: #FDFDFD; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    height: 100vh; 
+                    margin: 0; 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                video { 
+                    max-width: 60vw; 
+                    max-height: 40vh;
+                }
+                @keyframes slideUpFade {
+                    0% { opacity: 0; transform: translateY(24px); }
+                    60% { opacity: 0.8; transform: translateY(6px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                .hello-text {
+                    font-size: 20px;
+                    font-weight: 700;
+                    opacity: 0;
+                    visibility: visible;
+                }
+                .hello-text.animate {
+                    animation: slideUpFade 800ms cubic-bezier(.2,.9,.3,1) forwards;
+                }
+                .logo-container {
+                    position: absolute;
+                    top: 16px;
+                    left: 16px;
+                    z-index: 2;
+                }
+                .logo {
+                    border-radius: 50%;
+                    width: 40px;
+                    height: auto;
+                }
+                @keyframes bounce-slow {
+                    0%, 100% { transform: scale(1) translateY(0); }
+                    35% { transform: scale(1.1) translateY(-5px); }
+                    45% { transform: scale(0.95) translateY(2px); }
+                    75% { transform: scale(1.05) translateY(-2px); }
+                }
+                .animate-bounce-slow {
+                    animation: bounce-slow 4s ease-in-out infinite;
+                }
+                .DqVoiceWidget__chat,
+                .DqVoiceWidget__chat[style],
+                .DqVoiceWidget__chat[style*="display"],
+                .DqVoiceWidget__chat[style*="block"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                }
+                @keyframes bounceIn {
+                    0% {
                         opacity: 0;
-                        visibility: visible; /* Ensure visibility even if animation fails */
+                        transform: scale(0.3) rotate(-12deg);
                     }
-                    .hello-text.animate {
-                        animation: slideUpFade 800ms cubic-bezier(.2,.9,.3,1) forwards;
+                    50% {
+                        opacity: 0.8;
+                        transform: scale(1.05) rotate(2deg);
                     }
-                    .logo-container {
-                        position: absolute;
-                        top: 16px;
-                        left: 16px;
-                        z-index: 2;
+                    70% {
+                        transform: scale(0.98) rotate(-1deg);
                     }
-                    .logo {
-                        border-radius: 50%;
-                        width: 40px;
-                        height: auto;
+                    100% {
+                        opacity: 1;
+                        transform: scale(1) rotate(0deg);
                     }
-                    @keyframes bounce-slow {
-                        0%, 100% { transform: scale(1) translateY(0);}
-                        35% { transform: scale(1.1) translateY(-5px);}
-                        45% { transform: scale(0.95) translateY(2px);}
-                        75% { transform: scale(1.05) translateY(-2px);}
-                    }
-                    .animate-bounce-slow {
-                        animation: bounce-slow 4s ease-in-out infinite;
-                    }
-                    .DqVoiceWidget__chat,
-                    .DqVoiceWidget__chat[style],
-                    .DqVoiceWidget__chat[style*="display"],
-                    .DqVoiceWidget__chat[style*="block"] {
-                        display: none !important;
-                        visibility: hidden !important;
-                        opacity: 0 !important;
-                        pointer-events: none !important;
-                    }
-                </style>
-                <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
-                <script>
-                    console.log('Starting homepage script');
-                    let ws = new WebSocket(`ws://${window.location.host}/ws`);
-                    ws.onmessage = function(event) {
-                        console.log('WebSocket message received:', event.data);
-                        if (event.data === 'reload') {
-                            window.location.reload();
+                }
+                @keyframes float {
+                    0% { transform: translateY(0) translateX(0); }
+                    25% { transform: translateY(-20px) translateX(10px); }
+                    50% { transform: translateY(0) translateX(20px); }
+                    75% { transform: translateY(20px) translateX(10px); }
+                    100% { transform: translateY(0) translateX(0); }
+                }
+                .background-balls {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    pointer-events: none;
+                    z-index: -1;
+                }
+                .ball {
+                    position: absolute;
+                    background: radial-gradient(circle at 30%, rgba(0, 102, 255, 0.3), transparent 70%);
+                    border-radius: 50%;
+                    filter: blur(20px);
+                    animation: float 10s ease-in-out infinite;
+                    opacity: 0.3;
+                }
+                .ball:nth-child(1) {
+                    width: 80px;
+                    height: 80px;
+                    top: 10%;
+                    left: 15%;
+                    animation-duration: 12s;
+                }
+                .ball:nth-child(2) {
+                    width: 120px;
+                    height: 120px;
+                    top: 30%;
+                    right: 20%;
+                    animation-duration: 15s;
+                    animation-delay: 2s;
+                }
+                .ball:nth-child(3) {
+                    width: 60px;
+                    height: 60px;
+                    bottom: 25%;
+                    left: 30%;
+                    animation-duration: 13s;
+                    animation-delay: 1s;
+                }
+                .grid-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    gap: 24px;
+                    margin-bottom: 120px;
+                    padding: 12px;
+                    position: relative;
+                    z-index: 1;
+                }
+                .recommendations-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    gap: 24px;
+                    padding: 12px;
+                    position: relative;
+                    z-index: 1;
+                    height: 100vh;
+                    overflow-y: auto;
+                }
+                .item-card {
+                    background: white;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                    transform: scale(0.3);
+                    opacity: 0;
+                    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+                    width: 214px;
+                }
+                .item-card:hover {
+                    transform: scale(1.02);
+                    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+                    transition: all 0.3s ease;
+                }
+                .image-container {
+                    position: relative;
+                    width: 100%;
+                    padding-bottom: 100%;
+                    background: #f5f5f5;
+                    overflow: hidden;
+                }
+                .item-image {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    transform-origin: center;
+                }
+                .item-image[data-size="small"] {
+                    transform: scale(1.2);
+                }
+                .item-image[data-size="medium"] {
+                    transform: scale(1.6);
+                }
+                .item-image[data-size="large"] {
+                    transform: scale(1.9);
+                }
+                .quantity-badge {
+                    position: absolute;
+                    top: 4px;
+                    right: 4px;
+                    background: #0066FF;
+                    color: white;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 600;
+                    font-size: 20px;
+                    box-shadow: 0 2px 4px rgba(0, 102, 255, 0.3);
+                }
+                .size-badge {
+                    position: absolute;
+                    bottom: 8px;
+                    right: 8px;
+                    background: rgba(0, 0, 0, 0.25);
+                    backdrop-filter: blur(4px);
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: 500;
+                    text-transform: capitalize;
+                }
+                .item-details {
+                    padding: 12px;
+                }
+                .item-name {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #1a1a1a;
+                    margin-bottom: 4px;
+                }
+                .item-price {
+                    display: flex;
+                    justify-content: end;
+                    color: #1a1a1a;
+                    font-size: 15px;
+                    font-weight: 500;
+                }
+                .total-container {
+                    position: fixed;
+                    bottom: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 50%;
+                    background: white;
+                    border-top: 1px solid #eee;
+                    padding: 4px 16px 16px 16px;
+                    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+                }
+                .total-container::before {
+                    content: '';
+                    position: absolute;
+                    top: -20px;
+                    left: 0;
+                    right: 0;
+                    height: 20px;
+                    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
+                }
+                .order-breakdown {
+                    font-size: 12px;
+                    color: #666;
+                }
+                .breakdown-item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 4px;
+                }
+                .total-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-top: 12px;
+                    border-top: 1px solid #eee;
+                }
+                .total-label {
+                    font-size: 15px;
+                    font-weight: 500;
+                }
+                .total-amount {
+                    color: #0066FF;
+                    font-size: 14px;
+                    font-weight: 700;
+                }
+            </style>
+            <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
+            <script>
+                console.log('Starting homepage script');
+                let ws = new WebSocket(`ws://${window.location.host}/ws`);
+                ws.onmessage = function(event) {
+                    console.log('WebSocket message received:', event.data);
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'order' || message.type === 'recommendations') {
+                            console.log('Processing', message.type);
+                            updateContent(message.type, message.data);
                         }
-                    };
-                    ws.onerror = function(error) {
-                        console.error('WebSocket error:', error);
-                    };
-                    document.addEventListener('DOMContentLoaded', () => {
-                        console.log('DOM fully loaded');
-                        setTimeout(() => {
-                            console.log('Attempting to animate hello-text');
-                            const el = document.querySelector('.hello-text');
-                            if (el) {
-                                console.log('Found hello-text element, adding animate class');
-                                el.classList.add('animate');
-                            } else {
-                                console.error('hello-text element not found');
-                            }
-                        }, 2000); // Increased delay for production
-                    });
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+                ws.onclose = function() {
+                    console.log('WebSocket connection closed');
+                };
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    console.log('DOM fully loaded');
+                    setTimeout(() => {
+                        console.log('Attempting to animate hello-text');
+                        const el = document.querySelector('.hello-text');
+                        if (el) {
+                            console.log('Found hello-text element, adding animate class');
+                            el.classList.add('animate');
+                        } else {
+                            console.error('hello-text element not found');
+                        }
+                    }, 2000);
                     // Fallback to show text if animation doesn't trigger
                     setTimeout(() => {
                         const el = document.querySelector('.hello-text');
@@ -731,9 +707,118 @@ async def view_order():
                             el.style.transform = 'translateY(0)';
                         }
                     }, 3000);
-                </script>
-            </head>
-            <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+                });
+
+                function updateContent(type, data) {
+                    const container = document.getElementById('dynamic-content');
+                    if (!container) {
+                        console.error('Dynamic content container not found');
+                        return;
+                    }
+                    let html = '';
+                    if (type === 'recommendations') {
+                        html += '<div class="recommendations-grid">';
+                        data.forEach((item, idx) => {
+                            const menuItem = item.menu_item;
+                            const size = 'medium';
+                            const price = menuItem.sizes ? menuItem.sizes[size] || 0 : 0;
+                            const imageHtml = menuItem.image ? 
+                                `<img class="item-image" src="/static/${menuItem.image}" alt="${menuItem.name_en}" data-size="${size}" loading="lazy">` : 
+                                `<div class="placeholder">Item #${menuItem.item || 'N/A'}</div>`;
+                            html += `
+                                <div class="item-card" style="animation-delay: ${idx * 0.1}s">
+                                    <div class="image-container">
+                                        ${imageHtml}
+                                        <div class="size-badge">${size}</div>
+                                    </div>
+                                    <div class="item-details">
+                                        <div class="item-name">${menuItem.name_en}</div>
+                                        <div class="item-price">${price.toFixed(2)} ${menuItem.currency}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    } else if (type === 'order') {
+                        html += '<div class="grid-container">';
+                        let total = 0;
+                        const breakdownItems = [];
+                        data.forEach((item, idx) => {
+                            const menuItem = item.menu_item;
+                            const size = getSizeKey(item.size);
+                            const quantity = item.quantity;
+                            const price = menuItem.sizes ? menuItem.sizes[size] || 0 : 0;
+                            const subtotal = price * quantity;
+                            total += subtotal;
+                            breakdownItems.push({
+                                name: menuItem.name_en,
+                                quantity: quantity,
+                                subtotal: subtotal
+                            });
+                            const imageHtml = menuItem.image ? 
+                                `<img class="item-image" src="/static/${menuItem.image}" alt="${menuItem.name_en}" data-size="${size}" loading="lazy">` : 
+                                `<div class="placeholder">Item #${menuItem.item || 'N/A'}</div>`;
+                            html += `
+                                <div class="item-card" style="animation-delay: ${idx * 0.1}s">
+                                    <div class="image-container">
+                                        ${imageHtml}
+                                        <div class="quantity-badge">${quantity}</div>
+                                        <div class="size-badge">${size}</div>
+                                    </div>
+                                    <div class="item-details">
+                                        <div class="item-name">${menuItem.name_en}</div>
+                                        <div class="item-price">${price.toFixed(2)} ${menuItem.currency}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        html += '<div class="total-container"><div class="order-breakdown">';
+                        breakdownItems.forEach(item => {
+                            html += `
+                                <div class="breakdown-item">
+                                    <span>${item.name} × ${item.quantity}</span>
+                                    <span>${item.subtotal.toFixed(2)} KWD</span>
+                                </div>
+                            `;
+                        });
+                        html += `</div><div class="total-row">
+                            <span class="total-label">Total</span>
+                            <span class="total-amount">KWD ${total.toFixed(2)}</span>
+                        </div></div>`;
+                    }
+                    container.innerHTML = html;
+                    // Re-apply animation delays
+                    const cards = container.querySelectorAll('.item-card');
+                    cards.forEach((card, index) => {
+                        card.style.animationDelay = `${index * 0.1}s`;
+                    });
+                    // Hide initial content
+                    const initialContent = document.getElementById('initial-content');
+                    if (initialContent) initialContent.style.display = 'none';
+                }
+
+                function getSizeKey(size) {
+                    const sizeMapping = {
+                        "وسط": "medium",
+                        "موسط": "medium",
+                        "صغير": "small", 
+                        "كبير": "large",
+                        "medium": "medium",
+                        "small": "small",
+                        "large": "large"
+                    };
+                    return sizeMapping[size.toLowerCase()] || size.toLowerCase();
+                }
+            </script>
+        </head>
+        <body>
+            <div class="background-balls">
+                <div class="ball"></div>
+                <div class="ball"></div>
+                <div class="ball"></div>
+            </div>
+            <div id="initial-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
                 <div class="logo-container">
                     <img class="logo" src="/static/anm/coffee-caribou-logo.png" alt="Logo">
                 </div>
@@ -742,11 +827,12 @@ async def view_order():
                 <div class="voice-widget-container">
                     <dq-voice agent-id='68f046cd815af002cbebfc7c' api-key='dqKey_891f22908457d4ec3fa25de1cad472fa59a940ffa8d5ec52fdd0196604980670ure6wzs3zu'></dq-voice>
                 </div>
-            </body>
-            </html>
-            """
-        )
-    return HTMLResponse(content=generate_html_response(last_order_details, last_recommendations))
+            </div>
+            <div id="dynamic-content"></div>
+        </body>
+        </html>
+        """
+    )
 
 @app.get("/debug-menu")
 async def debug_menu():
@@ -771,11 +857,11 @@ async def websocket_endpoint(websocket: WebSocket):
     except:
         app.state.websockets.discard(websocket)  # Remove client on disconnect
 
-# Modify webhook to trigger reload
-async def notify_clients():
+# Modify webhook to send data
+async def notify_clients(message: dict):
     for client in app.state.websockets:
         try:
-            await client.send_text('reload')
+            await client.send_text(json.dumps(message))
         except:
             pass
 
