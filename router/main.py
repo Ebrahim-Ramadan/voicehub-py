@@ -672,7 +672,8 @@ async def view_order():
             <script src='https://voicehub.dataqueue.ai/DqVoiceWidget.js'></script>
             <script>
                 console.log('Starting homepage script');
-                let ws = new WebSocket(`ws://${window.location.host}/ws`);
+                let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+                let ws = new WebSocket(`${ws_scheme}://${window.location.host}/ws`);
                 ws.onmessage = function(event) {
                     console.log('WebSocket message received:', event.data);
                     try {
