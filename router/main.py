@@ -2,11 +2,12 @@ from fastapi import FastAPI, Request, HTTPException, WebSocket
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 import asyncio
 import uvicorn
 import json
 import os
+import pickle
 
 # Load menu data
 with open("menu.json", "r", encoding="utf-8") as f:
@@ -85,6 +86,23 @@ def get_size_key(size: str) -> str:
 # Store recommendations separately
 last_recommendations = []  # Store recommended items
 last_order_details = []  # Store the last order
+
+STATE_FILE = "state.pkl"
+
+def save_state():
+    with open(STATE_FILE, "wb") as f:
+        pickle.dump({
+            "last_order_details": last_order_details,
+            "last_recommendations": last_recommendations
+        }, f)
+
+def load_state():
+    global last_order_details, last_recommendations
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "rb") as f:
+            data = pickle.load(f)
+            last_order_details = data.get("last_order_details", [])
+            last_recommendations = data.get("last_recommendations", [])
 
 def generate_html_content(order_details: List[dict] = None, recommendations: List[dict] = None) -> str:
     show_recommendations = not order_details and recommendations  # Show recommendations only if no order items
@@ -248,8 +266,9 @@ async def recommendations_endpoint(request: Request):
                 content={"error": "No valid items in recommendations"}
             )
         
-        # Store recommendations
+        # Store recommendations and persist
         last_recommendations = recommendations
+        save_state()
         print(f"\n✅ Recommendations stored with {len(recommendations)} items")
         
         # Notify all connected WebSocket clients with recommendations data
@@ -340,8 +359,9 @@ async def webhook_endpoint(request: Request):
                 content={"error": "No valid items in order"}
             )
         
-        # Store and notify clients
+        # Store and persist order
         last_order_details = order_details
+        save_state()
         print(f"\n✅ Order stored with {len(order_details)} items")
         
         # Notify all connected WebSocket clients with order data
@@ -361,11 +381,7 @@ async def webhook_endpoint(request: Request):
 
 @app.get("/")
 async def view_order():
-    # Reset state on page load to show initial "Hello!" screen
-    global last_order_details, last_recommendations
-    last_order_details = []
-    last_recommendations = []
-    
+    # DO NOT reset last_order_details or last_recommendations here!
     return HTMLResponse(
         content="""
         <html>
@@ -697,9 +713,25 @@ async def view_order():
                             el.style.transform = 'translateY(0)';
                         }
                     }, 3000);
+
+                    // Fetch current state on page load
+                    fetch('/current')
+                        .then(res => res.json())
+                        .then(msg => {
+                            if (msg.type === 'order' || msg.type === 'recommendations') {
+                                updateContent(msg.type, msg.data);
+                            }
+                        });
                 });
 
                 function updateContent(type, data) {
+                    // Always hide initial content and remove it from DOM for robustness
+                    const initialContent = document.getElementById('initial-content');
+                    if (initialContent) {
+                        initialContent.style.display = 'none';
+                        // Optionally, remove from DOM to prevent any GIF from running
+                        initialContent.parentNode && initialContent.parentNode.removeChild(initialContent);
+                    }
                     const container = document.getElementById('dynamic-content');
                     if (!container) {
                         console.error('Dynamic content container not found');
@@ -783,9 +815,6 @@ async def view_order():
                     cards.forEach((card, index) => {
                         card.style.animationDelay = `${index * 0.1}s`;
                     });
-                    // Hide initial content
-                    const initialContent = document.getElementById('initial-content');
-                    if (initialContent) initialContent.style.display = 'none';
                 }
 
                 function getSizeKey(size) {
@@ -826,6 +855,16 @@ async def view_order():
         """
     )
 
+# Add this endpoint to allow frontend to fetch current state on load
+@app.get("/current")
+async def get_current():
+    if last_order_details:
+        return {"type": "order", "data": last_order_details}
+    elif last_recommendations:
+        return {"type": "recommendations", "data": last_recommendations}
+    else:
+        return {"type": "none", "data": []}
+
 @app.get("/debug-menu")
 async def debug_menu():
     """Endpoint to view all menu items"""
@@ -838,28 +877,43 @@ async def debug_menu():
         })
     return JSONResponse(content=menu_debug)
 
-# Add WebSocket endpoint
+class WebSocketManager:
+    def __init__(self):
+        self.websockets: Set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.websockets.add(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.websockets.discard(websocket)
+
+    async def broadcast(self, message: dict):
+        disconnected = []
+        for ws in self.websockets:
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                disconnected.append(ws)
+        for ws in disconnected:
+            self.disconnect(ws)
+
+ws_manager = WebSocketManager()
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    app.state.websockets.add(websocket)  # Add client to set
+    await ws_manager.connect(websocket)
     try:
         while True:
             await websocket.receive_text()
-    except:
-        app.state.websockets.discard(websocket)  # Remove client on disconnect
+    except Exception:
+        ws_manager.disconnect(websocket)
 
-# Modify webhook to send data
 async def notify_clients(message: dict):
-    for client in app.state.websockets:
-        try:
-            await client.send_text(json.dumps(message))
-        except:
-            pass
-
-@app.on_event("startup")
-async def startup_event():
-    app.state.websockets = set()
+    await ws_manager.broadcast(message)
 
 if __name__ == "__main__":
+    # Load saved state on startup
+    load_state()
+    
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
