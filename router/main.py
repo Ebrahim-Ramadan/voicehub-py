@@ -915,5 +915,5 @@ async def notify_clients(message: dict):
 if __name__ == "__main__":
     # Load saved state on startup
     load_state()
-    
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # REMOVE reload=True and set workers=1 for prod/ngrok
+    uvicorn.run("router.main:app", host="0.0.0.0", port=8000, workers=1)
